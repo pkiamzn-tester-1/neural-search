@@ -772,6 +772,21 @@ public abstract class BaseNeuralSearchIT extends OpenSearchSecureRestTestCase {
         return modelGroupId;
     }
 
+    protected List<Map<String, Object>> getNestedHits(Map<String, Object> searchResponseAsMap) {
+        Map<String, Object> hitsMap = (Map<String, Object>) searchResponseAsMap.get("hits");
+        return (List<Map<String, Object>>) hitsMap.get("hits");
+    }
+
+    protected Map<String, Object> getTotalHits(Map<String, Object> searchResponseAsMap) {
+        Map<String, Object> hitsMap = (Map<String, Object>) searchResponseAsMap.get("hits");
+        return (Map<String, Object>) hitsMap.get("total");
+    }
+
+    protected Optional<Float> getMaxScore(Map<String, Object> searchResponseAsMap) {
+        Map<String, Object> hitsMap = (Map<String, Object>) searchResponseAsMap.get("hits");
+        return hitsMap.get("max_score") == null ? Optional.empty() : Optional.of(((Double) hitsMap.get("max_score")).floatValue());
+    }
+
     /**
      * Enumeration for types of pipeline processors, used to lookup resources like create
      * processor request as those are type specific
