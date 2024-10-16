@@ -214,5 +214,6 @@ public class HybridQueryPhaseSearcher extends QueryPhaseSearcherWrapper {
                 hasTimeout
             );
         }
+
     }
 }
