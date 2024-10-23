@@ -39,6 +39,7 @@ public class TestUtils {
 
     public static final String RELATION_EQUAL_TO = "eq";
     public static final float DELTA_FOR_SCORE_ASSERTION = 0.001f;
+    public static final float DELTA_FOR_FLOATS_ASSERTION = 0.001f;
     public static final String RESTART_UPGRADE_OLD_CLUSTER = "tests.is_old_cluster";
     public static final String BWC_VERSION = "tests.plugin_bwc_version";
     public static final String NEURAL_SEARCH_BWC_PREFIX = "neuralsearch-bwc-";
@@ -303,6 +304,10 @@ public class TestUtils {
     }
 
     public static void assertHitResultsFromQuery(int expected, Map<String, Object> searchResponseAsMap) {
+        assertHitResultsFromQuery(expected, expected, searchResponseAsMap);
+    }
+
+    public static void assertHitResultsFromQuery(int expected, int expectedTotal, Map<String, Object> searchResponseAsMap) {
         assertEquals(expected, getHitCount(searchResponseAsMap));
 
         List<Map<String, Object>> hitsNestedList = getNestedHits(searchResponseAsMap);
@@ -320,7 +325,7 @@ public class TestUtils {
 
         Map<String, Object> total = getTotalHits(searchResponseAsMap);
         assertNotNull(total.get("value"));
-        assertEquals(expected, total.get("value"));
+        assertEquals(expectedTotal, total.get("value"));
         assertNotNull(total.get("relation"));
         assertEquals(RELATION_EQUAL_TO, total.get("relation"));
     }
