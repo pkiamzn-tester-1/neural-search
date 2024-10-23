@@ -594,7 +594,6 @@ public abstract class BaseNeuralSearchIT extends OpenSearchSecureRestTestCase {
         if (requestParams != null && !requestParams.isEmpty()) {
             requestParams.forEach(request::addParameter);
         }
-        logger.info("Sorting request  " + builder.toString());
         request.setJsonEntity(builder.toString());
         Response response = client().performRequest(request);
         assertEquals(request.getEndpoint() + ": failed", RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
