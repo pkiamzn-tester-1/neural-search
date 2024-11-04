@@ -639,6 +639,7 @@ public class HybridQueryIT extends BaseNeuralSearchIT {
 
             HybridQueryBuilder hybridQueryBuilder = new HybridQueryBuilder();
             hybridQueryBuilder.add(QueryBuilders.existsQuery(TEST_TEXT_FIELD_NAME_1));
+            // hybridQueryBuilder.paginationDepth(10);
 
             Map<String, Object> searchResponseAsMap = search(
                 alias,
