@@ -61,7 +61,7 @@ public class HybridQueryWeightTests extends OpenSearchQueryTestCase {
         IndexReader reader = DirectoryReader.open(w);
         HybridQuery hybridQueryWithTerm = new HybridQuery(
             List.of(QueryBuilders.termQuery(TEXT_FIELD_NAME, TERM_QUERY_TEXT).toQuery(mockQueryShardContext)),
-            0
+            null
         );
         IndexSearcher searcher = newSearcher(reader);
         Weight weight = hybridQueryWithTerm.createWeight(searcher, ScoreMode.TOP_SCORES, 1.0f);
@@ -118,7 +118,7 @@ public class HybridQueryWeightTests extends OpenSearchQueryTestCase {
                     .toQuery(mockQueryShardContext),
                 QueryBuilders.termQuery(TEXT_FIELD_NAME, TERM_QUERY_TEXT).toQuery(mockQueryShardContext)
             ),
-            0
+            null
         );
         IndexSearcher searcher = newSearcher(reader);
         Weight weight = hybridQueryWithTerm.createWeight(searcher, ScoreMode.TOP_SCORES, 1.0f);
@@ -166,7 +166,7 @@ public class HybridQueryWeightTests extends OpenSearchQueryTestCase {
         IndexReader reader = DirectoryReader.open(w);
         HybridQuery hybridQueryWithTerm = new HybridQuery(
             List.of(QueryBuilders.termQuery(TEXT_FIELD_NAME, TERM_QUERY_TEXT).toQuery(mockQueryShardContext)),
-            0
+            null
         );
         IndexSearcher searcher = newSearcher(reader);
         Weight weight = searcher.createWeight(hybridQueryWithTerm, ScoreMode.COMPLETE, 1.0f);

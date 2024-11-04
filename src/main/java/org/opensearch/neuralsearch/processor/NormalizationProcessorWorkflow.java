@@ -18,10 +18,12 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.FieldDoc;
+import org.opensearch.action.search.SearchPhaseContext;
 import org.opensearch.common.lucene.search.TopDocsAndMaxScore;
-import org.opensearch.neuralsearch.processor.combination.CombineScoresDto;
+import org.opensearch.neuralsearch.processor.dto.CombineScoresDto;
 import org.opensearch.neuralsearch.processor.combination.ScoreCombinationTechnique;
 import org.opensearch.neuralsearch.processor.combination.ScoreCombiner;
+import org.opensearch.neuralsearch.processor.dto.NormalizationExecuteDto;
 import org.opensearch.neuralsearch.processor.normalization.ScoreNormalizationTechnique;
 import org.opensearch.neuralsearch.processor.normalization.ScoreNormalizer;
 import org.opensearch.search.SearchHit;
@@ -47,18 +49,17 @@ public class NormalizationProcessorWorkflow {
 
     /**
      * Start execution of this workflow
-     * @param querySearchResults input data with QuerySearchResult from multiple shards
-     * @param normalizationTechnique technique for score normalization
-     * @param combinationTechnique technique for score combination
+     * @param normalizationExecuteDto contains querySearchResults input data with QuerySearchResult
+     * from multiple shards, fetchSearchResultOptional, normalizationTechnique technique for score normalization
+     *  combinationTechnique technique for score combination, searchPhaseContext.
      */
-    public void execute(
-        final List<QuerySearchResult> querySearchResults,
-        final Optional<FetchSearchResult> fetchSearchResultOptional,
-        final ScoreNormalizationTechnique normalizationTechnique,
-        final ScoreCombinationTechnique combinationTechnique,
-        final int fromValueForSingleShard,
-        final boolean isSingleShard
-    ) {
+    public void execute(final NormalizationExecuteDto normalizationExecuteDto) {
+        final List<QuerySearchResult> querySearchResults = normalizationExecuteDto.getQuerySearchResults();
+        final Optional<FetchSearchResult> fetchSearchResultOptional = normalizationExecuteDto.getFetchSearchResultOptional();
+        final ScoreNormalizationTechnique normalizationTechnique = normalizationExecuteDto.getNormalizationTechnique();
+        final ScoreCombinationTechnique combinationTechnique = normalizationExecuteDto.getCombinationTechnique();
+        final SearchPhaseContext searchPhaseContext = normalizationExecuteDto.getSearchPhaseContext();
+
         // save original state
         List<Integer> unprocessedDocIds = unprocessedDocIds(querySearchResults);
 
@@ -75,8 +76,8 @@ public class NormalizationProcessorWorkflow {
             .scoreCombinationTechnique(combinationTechnique)
             .querySearchResults(querySearchResults)
             .sort(evaluateSortCriteria(querySearchResults, queryTopDocs))
-            .fromValueForSingleShard(fromValueForSingleShard)
-            .isSingleShard(isSingleShard)
+            .fromValueForSingleShard(searchPhaseContext.getRequest().source().from())
+            .isFetchResultsPresent(fetchSearchResultOptional.isPresent())
             .build();
 
         // combine
@@ -86,7 +87,12 @@ public class NormalizationProcessorWorkflow {
         // post-process data
         log.debug("Post-process query results after score normalization and combination");
         updateOriginalQueryResults(combineScoresDTO);
-        updateOriginalFetchResults(querySearchResults, fetchSearchResultOptional, unprocessedDocIds, fromValueForSingleShard);
+        updateOriginalFetchResults(
+            querySearchResults,
+            fetchSearchResultOptional,
+            unprocessedDocIds,
+            combineScoresDTO.getFromValueForSingleShard()
+        );
     }
 
     /**
@@ -117,7 +123,6 @@ public class NormalizationProcessorWorkflow {
         final List<QuerySearchResult> querySearchResults = combineScoresDTO.getQuerySearchResults();
         final List<CompoundTopDocs> queryTopDocs = getCompoundTopDocs(combineScoresDTO, querySearchResults);
         final Sort sort = combineScoresDTO.getSort();
-        final int from = querySearchResults.get(0).from();
         int totalScoreDocsCount = 0;
         for (int index = 0; index < querySearchResults.size(); index++) {
             QuerySearchResult querySearchResult = querySearchResults.get(index);
@@ -127,14 +132,16 @@ public class NormalizationProcessorWorkflow {
                 buildTopDocs(updatedTopDocs, sort),
                 maxScoreForShard(updatedTopDocs, sort != null)
             );
-            if (combineScoresDTO.isSingleShard()) {
+            // Fetch Phase had ran before the normalization phase, therefore update the from value in result of each shard.
+            // This will ensure the trimming of the results.
+            if (combineScoresDTO.isFetchResultsPresent()) {
                 querySearchResult.from(combineScoresDTO.getFromValueForSingleShard());
             }
             querySearchResult.topDocs(updatedTopDocsAndMaxScore, querySearchResult.sortValueFormats());
         }
 
-        if ((from > 0 || combineScoresDTO.getFromValueForSingleShard() > 0)
-            && (from > totalScoreDocsCount || combineScoresDTO.getFromValueForSingleShard() > totalScoreDocsCount)) {
+        final int from = querySearchResults.get(0).from();
+        if (from > 0 && from > totalScoreDocsCount) {
             throw new IllegalArgumentException(
                 String.format(Locale.ROOT, "Reached end of search result, increase pagination_depth value to see more results")
             );
@@ -231,6 +238,9 @@ public class NormalizationProcessorWorkflow {
         QuerySearchResult querySearchResult = querySearchResults.get(0);
         TopDocs topDocs = querySearchResult.topDocs().topDocs;
 
+        // When normalization process will execute before the fetch phase, then from =0 is applicable.
+        // When normalization process runs after fetch phase, then search hits already fetched. Therefore, use the from value sent in the
+        // search request.
         // iterate over the normalized/combined scores, that solves (1) and (3)
         SearchHit[] updatedSearchHitArray = new SearchHit[topDocs.scoreDocs.length - fromValueForSingleShard];
         for (int i = fromValueForSingleShard; i < topDocs.scoreDocs.length; i++) {
@@ -242,14 +252,6 @@ public class NormalizationProcessorWorkflow {
             updatedSearchHitArray[i - fromValueForSingleShard] = searchHit;
         }
 
-        // iterate over the normalized/combined scores, that solves (1) and (3)
-        // SearchHit[] updatedSearchHitArray = Arrays.stream(topDocs.scoreDocs).map(scoreDoc -> {
-        // // get fetched hit content by doc_id
-        // SearchHit searchHit = docIdToSearchHit.get(scoreDoc.doc);
-        // // update score to normalized/combined value (3)
-        // searchHit.score(scoreDoc.score);
-        // return searchHit;
-        // }).toArray(SearchHit[]::new);
         SearchHits updatedSearchHits = new SearchHits(
             updatedSearchHitArray,
             querySearchResult.getTotalHits(),
