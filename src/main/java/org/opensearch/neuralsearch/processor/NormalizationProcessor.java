@@ -16,6 +16,7 @@ import org.opensearch.action.search.SearchPhaseContext;
 import org.opensearch.action.search.SearchPhaseName;
 import org.opensearch.action.search.SearchPhaseResults;
 import org.opensearch.neuralsearch.processor.combination.ScoreCombinationTechnique;
+import org.opensearch.neuralsearch.processor.dto.NormalizationExecuteDto;
 import org.opensearch.neuralsearch.processor.normalization.ScoreNormalizationTechnique;
 import org.opensearch.search.SearchPhaseResult;
 import org.opensearch.search.fetch.FetchSearchResult;
@@ -58,7 +59,16 @@ public class NormalizationProcessor implements SearchPhaseResultsProcessor {
         }
         List<QuerySearchResult> querySearchResults = getQueryPhaseSearchResults(searchPhaseResult);
         Optional<FetchSearchResult> fetchSearchResult = getFetchSearchResults(searchPhaseResult);
-        normalizationWorkflow.execute(querySearchResults, fetchSearchResult, normalizationTechnique, combinationTechnique);
+        // Builds data transfer object to pass into execute
+        NormalizationExecuteDto normalizationExecuteDto = NormalizationExecuteDto.builder()
+            .querySearchResults(querySearchResults)
+            .fetchSearchResultOptional(fetchSearchResult)
+            .normalizationTechnique(normalizationTechnique)
+            .combinationTechnique(combinationTechnique)
+            .searchPhaseContext(searchPhaseContext)
+            .build();
+
+        normalizationWorkflow.execute(normalizationExecuteDto);
     }
 
     @Override

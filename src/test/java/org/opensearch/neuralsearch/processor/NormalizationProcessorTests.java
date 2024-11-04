@@ -134,6 +134,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         );
 
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
+        searchRequest.source().from(0);
         searchRequest.setBatchedReduceSize(4);
         AtomicReference<Exception> onPartialMergeFailure = new AtomicReference<>();
         QueryPhaseResultConsumer queryPhaseResultConsumer = new QueryPhaseResultConsumer(
@@ -179,6 +180,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         }
 
         SearchPhaseContext searchPhaseContext = mock(SearchPhaseContext.class);
+        when(searchPhaseContext.getRequest()).thenReturn(searchRequest);
         normalizationProcessor.process(queryPhaseResultConsumer, searchPhaseContext);
 
         List<QuerySearchResult> querySearchResults = queryPhaseResultConsumer.getAtomicArray()
@@ -203,6 +205,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         );
 
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
+        searchRequest.source().from(0);
         searchRequest.setBatchedReduceSize(4);
         AtomicReference<Exception> onPartialMergeFailure = new AtomicReference<>();
         QueryPhaseResultConsumer queryPhaseResultConsumer = new QueryPhaseResultConsumer(
@@ -247,6 +250,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
 
         SearchPhaseContext searchPhaseContext = mock(SearchPhaseContext.class);
         when(searchPhaseContext.getNumShards()).thenReturn(1);
+        when(searchPhaseContext.getRequest()).thenReturn(searchRequest);
         normalizationProcessor.process(queryPhaseResultConsumer, searchPhaseContext);
 
         List<QuerySearchResult> querySearchResults = queryPhaseResultConsumer.getAtomicArray()
@@ -272,7 +276,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         SearchPhaseContext searchPhaseContext = mock(SearchPhaseContext.class);
         normalizationProcessor.process(null, searchPhaseContext);
 
-        verify(normalizationProcessorWorkflow, never()).execute(any(), any(), any(), any());
+        verify(normalizationProcessorWorkflow, never()).execute(any());
     }
 
     public void testNotHybridSearchResult_whenResultsNotEmptyAndNotHybridSearchResult_thenDoNotExecuteWorkflow() {
@@ -328,7 +332,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         when(searchPhaseContext.getNumShards()).thenReturn(numberOfShards);
         normalizationProcessor.process(queryPhaseResultConsumer, searchPhaseContext);
 
-        verify(normalizationProcessorWorkflow, never()).execute(any(), any(), any(), any());
+        verify(normalizationProcessorWorkflow, never()).execute(any());
     }
 
     public void testResultTypes_whenQueryAndFetchPresentAndSizeSame_thenCallNormalization() {
@@ -344,6 +348,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         );
 
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
+        searchRequest.source().from(0);
         searchRequest.setBatchedReduceSize(4);
         AtomicReference<Exception> onPartialMergeFailure = new AtomicReference<>();
         QueryPhaseResultConsumer queryPhaseResultConsumer = new QueryPhaseResultConsumer(
@@ -408,6 +413,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         queryPhaseResultConsumer.consumeResult(queryFetchSearchResult, partialReduceLatch::countDown);
 
         SearchPhaseContext searchPhaseContext = mock(SearchPhaseContext.class);
+        when(searchPhaseContext.getRequest()).thenReturn(searchRequest);
         normalizationProcessor.process(queryPhaseResultConsumer, searchPhaseContext);
 
         List<QuerySearchResult> querySearchResults = queryPhaseResultConsumer.getAtomicArray()
@@ -417,7 +423,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
             .collect(Collectors.toList());
 
         TestUtils.assertQueryResultScores(querySearchResults);
-        verify(normalizationProcessorWorkflow).execute(any(), any(), any(), any());
+        verify(normalizationProcessorWorkflow).execute(any());
     }
 
     public void testResultTypes_whenQueryAndFetchPresentButSizeDifferent_thenFail() {
@@ -433,6 +439,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         );
 
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
+        searchRequest.source().from(0);
         searchRequest.setBatchedReduceSize(4);
         AtomicReference<Exception> onPartialMergeFailure = new AtomicReference<>();
         QueryPhaseResultConsumer queryPhaseResultConsumer = new QueryPhaseResultConsumer(
@@ -495,6 +502,7 @@ public class NormalizationProcessorTests extends OpenSearchTestCase {
         queryPhaseResultConsumer.consumeResult(queryFetchSearchResult, partialReduceLatch::countDown);
 
         SearchPhaseContext searchPhaseContext = mock(SearchPhaseContext.class);
+        when(searchPhaseContext.getRequest()).thenReturn(searchRequest);
         IllegalStateException exception = expectThrows(
             IllegalStateException.class,
             () -> normalizationProcessor.process(queryPhaseResultConsumer, searchPhaseContext)

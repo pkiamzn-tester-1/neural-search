@@ -26,6 +26,7 @@ import org.apache.lucene.search.SortField;
 import org.opensearch.neuralsearch.processor.CompoundTopDocs;
 
 import lombok.extern.log4j.Log4j2;
+import org.opensearch.neuralsearch.processor.dto.CombineScoresDto;
 
 /**
  * Abstracts combination of scores in query search results.
@@ -65,14 +66,10 @@ public class ScoreCombiner {
     public void combineScores(final CombineScoresDto combineScoresDTO) {
         // iterate over results from each shard. Every CompoundTopDocs object has results from
         // multiple sub queries, doc ids may repeat for each sub query results
+        ScoreCombinationTechnique scoreCombinationTechnique = combineScoresDTO.getScoreCombinationTechnique();
+        Sort sort = combineScoresDTO.getSort();
         combineScoresDTO.getQueryTopDocs()
-            .forEach(
-                compoundQueryTopDocs -> combineShardScores(
-                    combineScoresDTO.getScoreCombinationTechnique(),
-                    compoundQueryTopDocs,
-                    combineScoresDTO.getSort()
-                )
-            );
+            .forEach(compoundQueryTopDocs -> combineShardScores(scoreCombinationTechnique, compoundQueryTopDocs, sort));
     }
 
     private void combineShardScores(
